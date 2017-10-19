@@ -1,0 +1,1 @@
+python eval_wc.py --load_arg ./checkpoint/drugddi.modelcwlm_lstm_crf.json --load_check_point ./checkpoint/drugddi.modelcwlm_lstm_crf.model --gpu -1 --dev_file ../data/DrugDDI/test.ddi --test_file ../data/DrugDDI/test.ddi

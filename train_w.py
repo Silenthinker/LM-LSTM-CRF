@@ -22,6 +22,7 @@ import functools
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Learning with BLSTM-CRF')
     parser.add_argument('--rand_embedding', action='store_true', help='random initialize word embedding')
+    parser.add_argument('--data_path', default='../data/conll2003', help='path to data set')
     parser.add_argument('--emb_file', default='./embedding/glove.6B.100d.txt', help='path to pre-trained embedding')
     parser.add_argument('--train_file', default='./data/ner2003/eng.train.iobes', help='path to training file')
     parser.add_argument('--dev_file', default='./data/ner2003/eng.testa.iobes', help='path to development file')
@@ -61,11 +62,11 @@ if __name__ == "__main__":
 
     # load corpus
     print('loading corpus')
-    with codecs.open(args.train_file, 'r', 'utf-8') as f:
+    with codecs.open(os.path.join(args.data_path, args.train_file), 'r', 'utf-8') as f:
         lines = f.readlines()
-    with codecs.open(args.dev_file, 'r', 'utf-8') as f:
+    with codecs.open(os.path.join(args.data_path, args.dev_file), 'r', 'utf-8') as f:
         dev_lines = f.readlines()
-    with codecs.open(args.test_file, 'r', 'utf-8') as f:
+    with codecs.open(os.path.join(args.data_path, args.test_file), 'r', 'utf-8') as f:
         test_lines = f.readlines()
 
     # converting format
@@ -228,7 +229,7 @@ if __name__ == "__main__":
                         'l_map': l_map,
                     }, {'track_list': track_list,
                         'args': vars(args)
-                        }, args.checkpoint + 'lstm_crf')
+                        }, args.checkpoint + '_lstm_crf')
                 except Exception as inst:
                     print(inst)
 
@@ -270,7 +271,7 @@ if __name__ == "__main__":
                         'l_map': l_map,
                     }, {'track_list': track_list,
                         'args': vars(args)
-                        }, args.checkpoint + 'lstm_crf')
+                        }, args.checkpoint + '_lstm_crf')
                 except Exception as inst:
                     print(inst)
 
