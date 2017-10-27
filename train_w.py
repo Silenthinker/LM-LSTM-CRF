@@ -131,7 +131,8 @@ if __name__ == "__main__":
     else:
         if not args.rand_embedding:
             ner_model.load_pretrained_embedding(embedding_tensor)
-        print('random initialization')
+        else:
+            print('random initialization')
         ner_model.rand_init(init_embedding=args.rand_embedding)
 
     if args.update == 'sgd':

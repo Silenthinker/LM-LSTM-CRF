@@ -1,0 +1,1 @@
+python seq_wc.py --load_arg ./checkpoint/drugddi2011_we_cwlm_lstm_crf.json --load_check_point ./checkpoint/drugddi2011_we_cwlm_lstm_crf.model --gpu -1 --input_file ../data/ddi_tiny/test.ddi --output_file ../data/ddi_tiny/output.txt
