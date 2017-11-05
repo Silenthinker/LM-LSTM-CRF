@@ -150,7 +150,55 @@ class predict:
             feature (list): list of words list
         """
         return None
+    
+class predict_lstm(predict):
+    """prediction class for lstm
 
+    args: 
+        if_cuda: if use cuda to speed up 
+        f_map: dictionary for words
+        l_map: dictionary for labels
+        pad_word: word padding
+        pad_label: label padding
+        start_label: start label 
+        label_seq: type of decode function, set `True` to couple label with text, or set 'False' to insert label into test
+        batch_size: size of batch in decoding
+        caseless: caseless or not
+    """
+   
+    def __init__(self, if_cuda, f_map, l_map, pad_word, pad_label, start_label=None, label_seq = True, batch_size = 50, caseless=True):
+        predict.__init__(self, if_cuda, l_map, label_seq, batch_size)
+        self.pad_word = pad_word
+        self.f_map = f_map
+        self.l_map = l_map
+        self.caseless = caseless
+        
+    def apply_model(self, ner_model, features):
+        """
+        apply_model function for LSTM-CRF
+
+        args:
+            ner_model: sequence labeling model
+            feature (list): list of words list
+        """
+        if self.caseless:
+            features = list(map(lambda t: list(map(lambda x: x.lower(), t)), features))
+        features = encode_safe(features, self.f_map, self.f_map['<unk>'])
+        f_len = max(map(lambda t: len(t), features))
+
+        masks = torch.ByteTensor(list(map(lambda t: [1] * len(t) + [0] * (f_len - len(t)), features)))
+        word_features = torch.LongTensor(list(map(lambda t: t + [self.pad_word] * (f_len - len(t)), features)))
+
+        if self.if_cuda:
+            fea_v = autograd.Variable(word_features.transpose(0, 1)).cuda()
+            mask_v = masks.transpose(0, 1).cuda()
+        else:
+            fea_v = autograd.Variable(word_features.transpose(0, 1))
+            mask_v = masks.transpose(0, 1).contiguous()
+
+        decoded = ner_model.decode(fea_v)
+        return decoded
+    
 class predict_w(predict):
     """prediction class for word level model (LSTM-CRF)
 
@@ -199,7 +247,6 @@ class predict_w(predict):
 
         scores, _ = ner_model(fea_v)
         decoded = self.decoder.decode(scores.data, mask_v)
-
         return decoded
 
 class predict_wc(predict):

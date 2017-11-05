@@ -44,10 +44,10 @@ class eval_batch:
         update statics for f1 score
 
         args: 
-            decoded_data (batch_size, seq_len): prediction sequence
+            decoded_data (seq_len, batch_size): prediction sequence
             target_data (batch_size, seq_len): ground-truth
         """
-        batch_decoded = torch.unbind(decoded_data, 1)
+        batch_decoded = torch.unbind(decoded_data, 1) # into tuple of sequences
         batch_targets = torch.unbind(target_data, 0)
 
         for decoded, target in zip(batch_decoded, batch_targets):
@@ -166,6 +166,45 @@ class eval_w(eval_batch):
             fea_v, _, mask_v = self.packer.repack_vb(feature, tg, mask)
             scores, _ = ner_model(fea_v)
             decoded = self.decoder.decode(scores.data, mask_v.data)
+            self.eval_b(decoded, tg)
+
+        return self.calc_s()
+
+class eval_lstm(eval_batch):
+    """evaluation class for word level model (LSTM)
+
+    args: 
+        packer: provide method to convert target into original space [TODO: need to improve]
+        l_map: dictionary for labels
+        score_type: use f1score with using 'f'
+
+    """
+   
+    def __init__(self, packer, l_map, score_type):
+        eval_batch.__init__(self, packer, l_map)
+        
+
+        if 'f' in score_type:
+            self.eval_b = self.calc_f1_batch
+            self.calc_s = self.f1_score
+        else:
+            self.eval_b = self.calc_acc_batch
+            self.calc_s = self.acc_score
+
+    def calc_score(self, ner_model, dataset_loader):
+        """
+        calculate score for pre-selected metrics
+
+        args: 
+            ner_model: LSTM-CRF model
+            dataset_loader: loader class for test set
+        """
+        ner_model.eval()
+        self.reset()
+                
+        for feature, tg, mask in itertools.chain.from_iterable(dataset_loader):
+            fea_v, _, mask_v = self.packer.repack_vb(feature, tg, mask)
+            decoded = ner_model.decode(fea_v)
             self.eval_b(decoded, tg)
 
         return self.calc_s()

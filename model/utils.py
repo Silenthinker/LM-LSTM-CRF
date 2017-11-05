@@ -169,7 +169,7 @@ def shrink_features(feature_map, features, thresholds):
     feature_map['<eof>'] = len(feature_map)
     return feature_map
 
-def generate_corpus(lines, if_shrink_feature=False, thresholds=1):
+def generate_corpus(lines, if_shrink_feature=False, thresholds=1, start=True):
     """
     generate label, feature, word dictionary and label dictionary
 
@@ -202,7 +202,8 @@ def generate_corpus(lines, if_shrink_feature=False, thresholds=1):
     if len(tmp_fl) > 0:
         features.append(tmp_fl)
         labels.append(tmp_ll)
-    label_map['<start>'] = len(label_map)
+    if start:
+        label_map['<start>'] = len(label_map)
     label_map['<pad>'] = len(label_map)
     if if_shrink_feature:
         feature_map = shrink_features(feature_map, features, thresholds)
@@ -236,7 +237,7 @@ def read_corpus(lines):
     if len(tmp_fl) > 0:
         features.append(tmp_fl)
         labels.append(tmp_ll)
-
+    
     return features, labels
 
 def read_features(lines, multi_docs = True):
@@ -486,6 +487,21 @@ def construct_bucket_mean_gd(input_features, input_label, word_dict, label_dict)
     return construct_bucket_gd(features, labels, thresholds, word_dict['<eof>'], label_dict['<pad>'])
 
 
+def construct_bucket_mean_lstm(input_features, input_label, word_dict, label_dict, caseless):
+    """
+    Construct bucket by mean for word-level only
+    """
+    # encode and padding
+    if caseless:
+        input_features = list(map(lambda t: list(map(lambda x: x.lower(), t)), input_features))
+
+    features = encode_safe(input_features, word_dict, word_dict['<unk>'])
+    labels = encode(input_label, label_dict)
+
+    thresholds = calc_threshold_mean(features)
+
+    return construct_bucket_lstm(features, labels, thresholds, word_dict['<eof>'], label_dict['<pad>'], len(label_dict))
+
 def construct_bucket_mean_vb(input_features, input_label, word_dict, label_dict, caseless):
     """
     Construct bucket by mean for viterbi decode, word-level only
@@ -501,6 +517,7 @@ def construct_bucket_mean_vb(input_features, input_label, word_dict, label_dict,
     thresholds = calc_threshold_mean(features)
 
     return construct_bucket_vb(features, labels, thresholds, word_dict['<eof>'], label_dict['<pad>'], len(label_dict))
+
 
 def construct_bucket_mean_vb_wc(word_features, input_label, label_dict, char_dict, word_dict, caseless):
     """
@@ -571,7 +588,6 @@ def construct_bucket_vb_wc(word_features, forw_features, fea_len, input_labels, 
                                    torch.ByteTensor(bucket[6]), torch.LongTensor(bucket[7])) for bucket in buckets]
     return bucket_dataset, forw_corpus, back_corpus
 
-
 def construct_bucket_vb(input_features, input_labels, thresholds, pad_feature, pad_label, label_size):
     """
     Construct bucket by thresholds for viterbi decode, word-level only
@@ -588,6 +604,23 @@ def construct_bucket_vb(input_features, input_labels, thresholds, pad_feature, p
             label[cur_len] * label_size + pad_label] + [pad_label * label_size + pad_label] * (
                                    thresholds[idx] - cur_len_1))
         buckets[idx][2].append([1] * cur_len_1 + [0] * (thresholds[idx] - cur_len_1))
+    bucket_dataset = [CRFDataset(torch.LongTensor(bucket[0]), torch.LongTensor(bucket[1]), torch.ByteTensor(bucket[2]))
+                      for bucket in buckets]
+    return bucket_dataset
+
+def construct_bucket_lstm(input_features, input_labels, thresholds, pad_feature, pad_label, label_size):
+    """
+    Construct bucket by thresholds for viterbi decode, word-level only
+    """
+    buckets = [[[], [], []] for _ in range(len(thresholds))]
+    for feature, label in zip(input_features, input_labels):
+        cur_len = len(feature)
+        idx = 0
+        while thresholds[idx] < cur_len:
+            idx += 1
+        buckets[idx][0].append(feature + [pad_feature] * (thresholds[idx] - cur_len))
+        buckets[idx][1].append(label + [pad_label] * (thresholds[idx] - cur_len))
+        buckets[idx][2].append([1] * cur_len + [0] * (thresholds[idx] - cur_len))
     bucket_dataset = [CRFDataset(torch.LongTensor(bucket[0]), torch.LongTensor(bucket[1]), torch.ByteTensor(bucket[2]))
                       for bucket in buckets]
     return bucket_dataset

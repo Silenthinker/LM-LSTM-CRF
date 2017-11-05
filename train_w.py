@@ -157,14 +157,25 @@ if __name__ == "__main__":
         if_cuda = False
         packer = CRFRepack(len(l_map), False)
 
+    evaluator = eval_w(packer, l_map, args.eva_matrix)
     if args.load_check_point:
-        dev_f1, dev_acc = eval_batch(ner_model, dev_dataset_loader, pack, l_map)
-        test_f1, test_acc = eval_batch(ner_model, test_dataset_loader, pack, l_map)
-        print('(checkpoint: dev F1 = %.4f, dev acc = %.4f, F1 on test = %.4f, acc on test= %.4f)' %
+        dev_res = evaluator.calc_score(ner_model, dev_dataset_loader)
+        test_res = evaluator.calc_score(ner_model, test_dataset_loader)
+        if 'f' in args.eva_matrix:
+            dev_f1, dev_pre, dev_rec, dev_acc = dev_res
+            test_f1, test_pre, test_rec, test_acc = test_res
+            print('(checkpoint: dev F1 = %.4f, dev acc = %.4f, F1 on test = %.4f, acc on test= %.4f)' %
               (dev_f1,
                dev_acc,
                test_f1,
                test_acc))
+        else:
+            dev_acc = dev_res
+            test_acc = test_res
+            print('(checkpoint: dev acc = %.4f, acc on test= %.4f)' %
+              (dev_acc,
+               test_acc))
+#        test_f1, test_acc = eval_batch(ner_model, test_dataset_loader, pack, l_map)
 
     tot_length = sum(map(lambda t: len(t), dataset_loader))
     best_f1 = float('-inf')
@@ -173,8 +184,6 @@ if __name__ == "__main__":
     start_time = time.time()
     epoch_list = range(args.start_epoch, args.start_epoch + args.epoch)
     patience_count = 0
-
-    evaluator = eval_w(packer, l_map, args.eva_matrix)
 
     for epoch_idx, args.start_epoch in enumerate(epoch_list):
 
