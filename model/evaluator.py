@@ -84,11 +84,12 @@ class eval_batch:
 
             self.total_labels += length
             self.correct_labels += np.sum(np.equal(best_path, gold))
-
+        
     def f1_score(self):
         """
         calculate f1 score based on statics
         """
+        print(self.correct_labels, self.total_labels, self.gold_count, self.guess_count, self.overlap_count)
         if self.guess_count == 0:
             return 0.0, 0.0, 0.0, 0.0
         precision = self.overlap_count / float(self.guess_count)

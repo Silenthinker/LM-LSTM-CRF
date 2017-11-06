@@ -14,6 +14,8 @@ from sklearn.utils import shuffle
 
 from model.utils import iobes_to_spans
 
+import pywikibot
+
 
 ''' Example
 <document id="DrugDDI.d89" origId="Aciclovir">
@@ -161,14 +163,15 @@ def save_data(pre_data, output_path='../data/DrugDDI/ddi.txt'):
                     output_file.write('{} {}\n'.format(word.text, word.etype))
                 output_file.write('\n') 
 
-def labelseq2conll(labelseq):
+def labelseq2conll(labelseq, iob=False):
     """
     Change format of '<DRUG> sulindac </DRUG> ; ' to that of CoNll 2003
+    also allow iobes tagging <B-DRUG>
     """
     # the first line starts with -DOCSTART-
     start_indicator = '-DOCSTART-'
-    sp = re.compile(r'<(\w*)>')
-    ep = re.compile(r'</(\w*)>')
+    sp = re.compile(r'<([BI]?)(-?)(\w*)>')
+    ep = re.compile(r'</([BI]?)(-?)(\w*)>')
     res = []
     sent = []
     labels = []
@@ -181,14 +184,18 @@ def labelseq2conll(labelseq):
                 smatch = sp.match(term)
                 ematch = ep.match(term)
                 if smatch:
-                    etype = smatch.group(1)
+                    iob_prefix = smatch.group(1)
+                    etype = smatch.group(3)
                     continue
                 if ematch:
                     etype = None
                     continue
                 sent.append(term)
                 if etype:
-                    labels.append(etype)
+                    if iob and iob_prefix:
+                        labels.append(iob_prefix + '-' + etype)
+                    else:
+                        labels.append(etype)
                 else:
                     labels.append('O')
         elif len(sent) > 0:
@@ -199,12 +206,12 @@ def labelseq2conll(labelseq):
         res.append((sent, labels))
     return res
     
-def iob2etype(lines):
+def iob2etype(lines, iob=False):
     """
     Change iob format to etype: for example, I-DRUG to DRUG
     """
     start_indicator = '-DOCSTART-'
-    p = re.compile(r'[IB]-(\w+)')
+    p = re.compile(r'([IB])-(\w+)')
     res = []
     sent = []
     labels = []
@@ -215,7 +222,10 @@ def iob2etype(lines):
             sent.append(w)
             match = p.match(label)
             if match:
-                label = match.group(1)
+                if iob:
+                    label = match.group(0)
+                else:
+                    label = match.group(2)
             labels.append(label)
         elif len(sent) > 0:
             res.append((sent, labels))
@@ -225,22 +235,42 @@ def iob2etype(lines):
         res.append((sent, labels))
     return res
             
-def find_error(gold, pred, fout):
+def find_error(gold, pred, fout, pem=None):
     """
     Find error given gold reference and output to fout
     """
+    site = pywikibot.Site('en', 'wikipedia')
+    cache = {}
     with open(fout, 'w') as f:
-        f.write('sentence,gold,pred\n\n')
-        for ref, p in zip(gold, pred):
+        head = 'sentence,gold,pred'
+        head += ',in_pem,top_entity,if_drugbank'
+        head += '\n\n'
+        f.write(head)
+        for ref, p in tqdm(zip(gold, pred)):
             labels_ref = ref[1]
             labels_pred = p[1]
             terms = ref[0]
             if labels_ref != labels_pred: # find error!
                 for i in range(len(terms)):
+                    in_pem = 'None'
+                    top_entity = 'None'
+                    if_drugbank = 'None'
+                    if pem:
+                        in_pem = True if terms[i] in pem else False
+                        if in_pem:
+                            top_entity, _ = pem[terms[i]][0]
+                            title = top_entity.replace('_', ' ')
+                            if top_entity not in cache:
+                                page = pywikibot.Page(site, title)
+                                if 'DrugBank_Ref' in page.text:
+                                    cache[top_entity] = True
+                                else:
+                                    cache[top_entity] = False
+                            if_drugbank = cache[top_entity]   
                     if labels_ref[i] != labels_pred[i]:
-                        f.write('{},{},{}-----------------------\n'.format(terms[i], labels_ref[i], labels_pred[i]))
+                        f.write('{},{},{},{},{},{}-----------------------\n'.format(terms[i], labels_ref[i], labels_pred[i], in_pem, top_entity, if_drugbank))
                     else:
-                        f.write('{},{},{}\n'.format(terms[i], labels_ref[i], labels_pred[i]))
+                        f.write('{},{},{},{},{},{}\n'.format(terms[i], labels_ref[i], labels_pred[i], in_pem, top_entity, if_drugbank))
                 f.write('\n')
                         
 def train_val_test_split(data, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_state=None):
@@ -332,6 +362,10 @@ def parse_pem(data_path='../data/crosswikis_wikipedia_p_e_m.txt', verbose=False)
     return pem
 
 def evaluate_baseline(ref_tgs, pred_tgs, l_map):
+    """
+    Args:
+        ref_tgs, pred_tgs: [[str]]
+    """
     r_l_map = {k:v for v, k in l_map.items()}
     correct_labels = 0
     total_labels = 0
@@ -343,6 +377,7 @@ def evaluate_baseline(ref_tgs, pred_tgs, l_map):
         """
         calculate f1 score based on statics
         """
+        print(correct_labels, total_labels, gold_count, guess_count, overlap_count)
         if guess_count == 0:
             return 0.0, 0.0, 0.0, 0.0
         precision = overlap_count / float(guess_count)

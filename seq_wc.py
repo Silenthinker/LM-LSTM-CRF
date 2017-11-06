@@ -28,6 +28,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=50, help='size of batch')
     parser.add_argument('--input_file', default='data/ner2003/test.txt', help='path to input un-annotated corpus')
     parser.add_argument('--output_file', default='output.txt', help='path to output file')
+    parser.add_argument('-keep_iobes', action='store_true', help='whether to keep iobes tagging')
     args = parser.parse_args()
 
     print('loading dictionary')
@@ -65,7 +66,9 @@ if __name__ == "__main__":
         if_cuda = False
 
     decode_label = (args.decode_type == 'label')
-    predictor = predict_wc(if_cuda, f_map, c_map, l_map, f_map['<eof>'], c_map['\n'], l_map['<pad>'], l_map['<start>'], decode_label, args.batch_size, jd['caseless'])
+    predictor = predict_wc(if_cuda, f_map, c_map, l_map, f_map['<eof>'], 
+                           c_map['\n'], l_map['<pad>'], l_map['<start>'], 
+                           decode_label, args.batch_size, jd['caseless'], args.keep_iobes)
 
     print('annotating')
     with open(args.output_file, 'w') as fout:

@@ -25,11 +25,12 @@ class predict:
         batch_size: size of batch in decoding
     """
 
-    def __init__(self, if_cuda, l_map, label_seq = True, batch_size = 50):
+    def __init__(self, if_cuda, l_map, label_seq = True, batch_size = 50, keep_iobes=False):
         self.if_cuda = if_cuda
         self.l_map = l_map
         self.r_l_map = revlut(l_map)
         self.batch_size = batch_size
+        self.keep_iobes = keep_iobes
         if label_seq:
             self.decode_str = self.decode_l
         else:
@@ -55,7 +56,11 @@ class predict:
         """
         chunks = ""
         current = None
-
+        
+        if self.keep_iobes:
+            span = slice(0, None)
+        else:
+            span = slice(2, None)
         for f, y in zip(feature, label):
             label = self.r_l_map[y]
 
@@ -63,34 +68,34 @@ class predict:
 
                 if current is not None:
                     chunks += "</"+current+"> "
-                current = label[2:]
+                current = label[span]
                 chunks += "<"+current+"> " + f + " "
 
             elif label.startswith('S-'):
 
                 if current is not None:
                     chunks += " </"+current+"> "
-                current = label[2:]
+                current = label[span]
                 chunks += "<"+current+"> " + f + " </"+current+"> "
                 current = None
 
             elif label.startswith('I-'):
 
                 if current is not None:
-                    base = label[2:]
+                    base = label[span]
                     if base == current:
                         chunks += f+" "
                     else:
                         chunks += "</"+current+"> <"+base+"> " + f + " "
                         current = base
                 else:
-                    current = label[2:]
+                    current = label[span]
                     chunks += "<"+current+"> " + f + " "
 
             elif label.startswith('E-'):
 
                 if current is not None:
-                    base = label[2:]
+                    base = label[span]
                     if base == current:
                         chunks += f + " </"+base+"> "
                         current = None
@@ -99,7 +104,7 @@ class predict:
                         current = None
 
                 else:
-                    current = label[2:]
+                    current = label[span]
                     chunks += "<"+current+"> " + f + " </"+current+"> "
                     current = None
 
@@ -166,8 +171,8 @@ class predict_lstm(predict):
         caseless: caseless or not
     """
    
-    def __init__(self, if_cuda, f_map, l_map, pad_word, pad_label, start_label=None, label_seq = True, batch_size = 50, caseless=True):
-        predict.__init__(self, if_cuda, l_map, label_seq, batch_size)
+    def __init__(self, if_cuda, f_map, l_map, pad_word, pad_label, start_label=None, label_seq = True, batch_size = 50, caseless=True, keep_iobes=False):
+        predict.__init__(self, if_cuda, l_map, label_seq, batch_size, keep_iobes=keep_iobes)
         self.pad_word = pad_word
         self.f_map = f_map
         self.l_map = l_map
@@ -214,8 +219,8 @@ class predict_w(predict):
         caseless: caseless or not
     """
    
-    def __init__(self, if_cuda, f_map, l_map, pad_word, pad_label, start_label, label_seq = True, batch_size = 50, caseless=True):
-        predict.__init__(self, if_cuda, l_map, label_seq, batch_size)
+    def __init__(self, if_cuda, f_map, l_map, pad_word, pad_label, start_label, label_seq = True, batch_size = 50, caseless=True, keep_iobes=False):
+        predict.__init__(self, if_cuda, l_map, label_seq, batch_size, keep_iobes=keep_iobes)
         self.decoder = CRFDecode_vb(len(l_map), start_label, pad_label)
         self.pad_word = pad_word
         self.f_map = f_map
@@ -266,8 +271,8 @@ class predict_wc(predict):
         caseless: caseless or not
     """
    
-    def __init__(self, if_cuda, f_map, c_map, l_map, pad_word, pad_char, pad_label, start_label, label_seq = True, batch_size = 50, caseless=True):
-        predict.__init__(self, if_cuda, l_map, label_seq, batch_size)
+    def __init__(self, if_cuda, f_map, c_map, l_map, pad_word, pad_char, pad_label, start_label, label_seq = True, batch_size = 50, caseless=True, keep_iobes=False):
+        predict.__init__(self, if_cuda, l_map, label_seq, batch_size, keep_iobes=keep_iobes)
         self.decoder = CRFDecode_vb(len(l_map), start_label, pad_label)
         self.pad_word = pad_word
         self.pad_char = pad_char

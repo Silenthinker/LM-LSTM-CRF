@@ -31,6 +31,8 @@ class Baseline:
     def decode(self, features):
         """
         Return labels of sequences given features
+        Return:
+            labels: [[str]]
         """
         labels = []
         for feature in features:
@@ -44,7 +46,7 @@ class Baseline:
                         title = top_entity.replace('_', ' ')
                         if top_entity not in self.cache:
                             page = pywikibot.Page(self.site, title)
-                            if 'DrugBank' in page.text:
+                            if 'DrugBank_Ref' in page.text:
                                 self.cache[top_entity] = True
                             else:
                                 self.cache[top_entity] = False
