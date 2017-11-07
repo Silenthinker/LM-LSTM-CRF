@@ -8,15 +8,12 @@ and check its wikipedia page to see if it contains a DrugBank id.
 If it does, link it, otherwise do not link it
 """
 
-from collections import Counter
-from operator import itemgetter
-
 from .data_utils import generate_ngrams
 
-import pywikibot
+from utils.wikibot import Wikibot
 
 class Baseline:
-    def __init__(self, pem, nums):
+    def __init__(self, pem, nums, bot=None):
         """
         Args:
             pem: P(e|m)
@@ -24,9 +21,7 @@ class Baseline:
         """
         self.pem = pem
         self.nums = nums
-        self.cache = {} # caching if entity is drug
-        # configure
-        self.site = pywikibot.Site('en', 'wikipedia')
+        self.bot = bot if bot is not None else Wikibot()
         
     def decode(self, features):
         """
@@ -44,13 +39,7 @@ class Baseline:
                     if ngram_concat in self.pem:
                         top_entity, _ = self.pem[ngram_concat][0]
                         title = top_entity.replace('_', ' ')
-                        if top_entity not in self.cache:
-                            page = pywikibot.Page(self.site, title)
-                            if 'DrugBank_Ref' in page.text:
-                                self.cache[top_entity] = True
-                            else:
-                                self.cache[top_entity] = False
-                        if self.cache[top_entity]:
+                        if self.bot.search_in_page(['DrugBank_Ref', 'ATC_prefix'], title):
                             label[i:i+len(ngram)] = ['B-DRUG'] + ['I-DRUG']*(len(ngram) - 1)
             labels.append(label)
         return labels

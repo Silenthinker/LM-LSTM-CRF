@@ -6,7 +6,6 @@ from itertools import chain
 
 import model.data_utils as data_utils
 
-import pywikibot
 from tqdm import tqdm
 
 from utils.wikibot import Wikibot
@@ -32,8 +31,7 @@ def postprocessing(pred, pem, bot, keep=True):
                 if features[i] in pem:
                     top_entity, _ = pem[features[i]][0]
                     title = top_entity.replace('_', ' ')
-                    bot.search_in_page('DrugBank_Ref', title)
-                    if not bot.cache[title]:
+                    if not bot.search_in_page(['DrugBank_Ref', 'ATC_prefix'], title):
                         tgs[i] = 'O'
                 elif not keep:
                     tgs[i] = 'O'
@@ -59,14 +57,14 @@ filename = os.path.join(data_path, 'test.ddi')
 with open(filename, 'r') as f:
     gold = data_utils.iob2etype(f.readlines(), iob=True)
 
-data_utils.find_error(gold, pred, os.path.join(data_path, 'error.txt'), pem=pem)
+data_utils.find_error(gold, pred, os.path.join(data_path, 'error.txt'), bot=bot, pem=pem)
 
 
 # postprocessing
 pred_pp_keep = postprocessing(pred, pem, bot, keep=True)
 pred_pp_nonkeep = postprocessing(pred, pem, bot, keep=False)
-data_utils.find_error(gold, pred_pp_keep, os.path.join(data_path, 'error_pp_keep.txt'), pem=pem)
-data_utils.find_error(gold, pred_pp_nonkeep, os.path.join(data_path, 'error_pp_nonkeep.txt'), pem=pem)
+data_utils.find_error(gold, pred_pp_keep, os.path.join(data_path, 'error_pp_keep.txt'), bot=bot, pem=pem)
+data_utils.find_error(gold, pred_pp_nonkeep, os.path.join(data_path, 'error_pp_nonkeep.txt'), bot=bot, pem=pem)
 
 
 # evaluation

@@ -14,7 +14,7 @@ from sklearn.utils import shuffle
 
 from model.utils import iobes_to_spans
 
-import pywikibot
+from utils.wikibot import Wikibot
 
 
 ''' Example
@@ -235,12 +235,11 @@ def iob2etype(lines, iob=False):
         res.append((sent, labels))
     return res
             
-def find_error(gold, pred, fout, pem=None):
+def find_error(gold, pred, fout, bot = None, pem=None):
     """
     Find error given gold reference and output to fout
     """
-    site = pywikibot.Site('en', 'wikipedia')
-    cache = {}
+    bot = bot if bot is not None else Wikibot()
     with open(fout, 'w') as f:
         head = 'sentence,gold,pred'
         head += ',in_pem,top_entity,if_drugbank'
@@ -260,13 +259,7 @@ def find_error(gold, pred, fout, pem=None):
                         if in_pem:
                             top_entity, _ = pem[terms[i]][0]
                             title = top_entity.replace('_', ' ')
-                            if top_entity not in cache:
-                                page = pywikibot.Page(site, title)
-                                if 'DrugBank_Ref' in page.text:
-                                    cache[top_entity] = True
-                                else:
-                                    cache[top_entity] = False
-                            if_drugbank = cache[top_entity]   
+                            if_drugbank = bot.search_in_page(['DrugBank_Ref', 'ATC_prefix'], title)
                     if labels_ref[i] != labels_pred[i]:
                         f.write('{},{},{},{},{},{}-----------------------\n'.format(terms[i], labels_ref[i], labels_pred[i], in_pem, top_entity, if_drugbank))
                     else:
