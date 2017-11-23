@@ -240,6 +240,7 @@ def find_error(gold, pred, fout, bot = None, pem=None):
     Find error given gold reference and output to fout
     """
     bot = bot if bot is not None else Wikibot()
+    fmt = '{:<20},{:<10},{:<10},{:<8},{:<20},{:<8}'
     with open(fout, 'w') as f:
         head = 'sentence,gold,pred'
         head += ',in_pem,top_entity,if_drugbank'
@@ -260,10 +261,10 @@ def find_error(gold, pred, fout, bot = None, pem=None):
                             top_entity, _ = pem[terms[i]][0]
                             title = top_entity.replace('_', ' ')
                             if_drugbank = bot.search_in_page(['DrugBank_Ref', 'ATC_prefix'], title)
+                    f.write(fmt.format(terms[i], labels_ref[i], labels_pred[i], in_pem, top_entity, if_drugbank))
                     if labels_ref[i] != labels_pred[i]:
-                        f.write('{},{},{},{},{},{}-----------------------\n'.format(terms[i], labels_ref[i], labels_pred[i], in_pem, top_entity, if_drugbank))
-                    else:
-                        f.write('{},{},{},{},{},{}\n'.format(terms[i], labels_ref[i], labels_pred[i], in_pem, top_entity, if_drugbank))
+                        f.write('-----------------------')
+                    f.write('\n')
                 f.write('\n')
                         
 def train_val_test_split(data, train_ratio=0.7, val_ratio=0.1, test_ratio=0.2, random_state=None):

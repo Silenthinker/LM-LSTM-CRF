@@ -27,8 +27,7 @@ def postprocessing(pred, pem, bot, keep=True):
     pred_copy = copy.deepcopy(pred)
     for features, tgs in tqdm(pred_copy):
         
-        '''
-        all_ngrams = data_utils.generate_ngrams(features, nums=range(6))
+        all_ngrams = data_utils.generate_ngrams(features, nums=range(4))
         for single_ngrams in all_ngrams:
             for i, ngram in enumerate(single_ngrams):
                 ngram_concat = '_'.join(ngram)
@@ -37,7 +36,11 @@ def postprocessing(pred, pem, bot, keep=True):
                     title = top_entity.replace('_', ' ')
                     if bot.search_in_page(['DrugBank_Ref', 'ATC_prefix'], title):
                         tgs[i:i+len(ngram)] = ['B-DRUG'] + ['I-DRUG']*(len(ngram) - 1)
-                            
+                '''
+                else:
+                    if bot.search_in_page(['DrugBank_Ref', 'ATC_prefix'], ' '.join(ngram)):
+                        tgs[i:i+len(ngram)] = ['B-DRUG'] + ['I-DRUG']*(len(ngram) - 1)
+                '''      
                             
         '''                    
         for i in range(len(features)):
@@ -49,7 +52,7 @@ def postprocessing(pred, pem, bot, keep=True):
                         tgs[i] = 'O'
                 elif not keep:
                     tgs[i] = 'O'
-        
+        '''
     return pred_copy
 
 
@@ -58,7 +61,7 @@ pem_path = '../data/crosswikis_wikipedia_p_e_m.txt'
     
     
 print('Preparing P(e|m)')
-#pem = data_utils.parse_pem(pem_path)
+pem = data_utils.parse_pem(pem_path)
 
 # create wikibot
 bot = Wikibot()
@@ -94,7 +97,5 @@ fmt = ' test_f1: {:.4f} test_pre: {:.4f} test_rec: {:.4f} test_acc: {:.4f}\n'
 print(fmt.format(*data_utils.evaluate_baseline(gold_tgs, pred_tgs, l_map)))
 print(fmt.format(*data_utils.evaluate_baseline(gold_tgs, pred_pp_keep_tgs, l_map)))
 print(fmt.format(*data_utils.evaluate_baseline(gold_tgs, pred_pp_nonkeep_tgs, l_map)))
-
-
 
 
